@@ -28,16 +28,17 @@ var muted = [0,0,0,0,0,0];
 var expressions = [
 
 	// kickdrum
-	"(Math.sin(t*250.0/22050.0)*1.0*Math.pow(1-t/50000,20))+(Math.sin(t*100.0/22050.0)*(1-t/50000))",
+	"Math.sin(t*150.0/22050.0)*curve(t,6) + Math.sin(t*200.0/22050.0)*curve(t,26)",
 
 	// snare
-	"0.6*noise(t,5)*curve(t,5)",
+	// "0.7*noise(t,5)*curve(t,14) + 0.6*noise(t,70)*curve(t,9)",
+	"0.7*noise(t,6)*curve(t,14) + 0.6*noise(t,10)*curve(t,9)",
 
 	// closed hihat
-	"0.3*noise(t,16)*curve(t,16)",
+	"0.4*noise(t,2)*curve(t,36)",
 
 	// open hihat
-	"0.3*noise(t,3)*curve(t,10)",
+	"0.3*noise(t,1)*curve(t,9) + 0.33*noise(t,1)*curve(t,19)",
 
 	// fx1
 	"0.5*Math.sin(t/13)*Math.pow(1-t/40000,5)",
@@ -87,11 +88,13 @@ for (var i=0; i<100000; i++)
 	noisetable.push(Math.random());
 
 function curve(t, power) {
-	return Math.pow(1-(Math.max(0,Math.min(t,SAMPLELENGTH))/SAMPLELENGTH), power);
+	t = Math.max(t, 0);
+	t = Math.min(t / SAMPLELENGTH, 1);
+	return Math.pow(1-t, power);
 }
 
 function noise(t, res) {
-	return noisetable[(Math.floor(t/res)%100000)]
+	return noisetable[(Math.floor(t/res)%100000)];
 }
 
 
