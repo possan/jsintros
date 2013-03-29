@@ -4,264 +4,251 @@ var b = document.body;
 var c = document.getElementsByTagName('canvas')[0];
 var a = c.getContext('2d');
 */
+// var a,b,c;
 
 //
 // config
 //
 
-var DEBUG = false;
+// we don't need no stinking canvas
+b.removeChild(c);
 
-var COLUMNS = 32;
-var SAMPLELENGTH = 50000; // ~0.5s
+var default_hash="!(s%4)$Math.sin(t*150.0*curve(t,1)/22050.0)*curve(t,16)+Math.sin(t*150.0/22050.0)*curve(t,15)$(s+4)%8==0||s==31$0.7*noise(t,6)*curve(t,14)+0.6*noise(t,10)*curve(t,9)$s%4!=2$0.4*noise(t,2)*curve(t,36)$(s+2)%4==0||s==20$0.3*noise(t,1)*curve(t,9)+0.33*noise(t,1)*curve(t,19)$s%5!=2$0.5*((t/600)%1-0.5)*curve(t,30)$s%3==2$0.5*((t/150)%1-0.5)*curve(t,20)";
 
-var ROWS = 6;
-var names = [
-	"Kickdrum",
-	"Snare",
-	"HH",
-	"OH",
-	"Effect1",
-	"Effect2"];
+var	d = document;
+var	w = window;
+var	i;
+var	step = 0;
+var	DEBUG = false;
+var	COLUMNS = 32;
+var	SAMPLELENGTH = 48000; // ~0.5s
+var	NOISELENGTH = SAMPLELENGTH;
+var	ROWS = 6;
+var	config = [];
+var	wl = w.location;
+var	wlh = wl.hash;
+var	context = new webkitAudioContext();
+var	comp = context.createDynamicsCompressor();
+var	noisetable=[];
+var	tracksel;
+var	add;
+var	title;
+var	tracks;
+var CHANGE='change';
+var	CLICK='click';
+var	INPUT='input';
+var	DIV='div';
+var	BUTTON='button';
 
-var muted = [0,0,0,0,0,0];
+function loadhash(ee) {
+	// console.log('loadhash event', ee);
+	var s = wlh.replace('#', '')
+	if (s == '') s = w.btoa(default_hash);
+	//	if (wlh == '') wlh = '#' + default_hash;
+	// console.log('s', s);
+	config = w.atob(s).split('$');
+	// console.log('new config', config);
+	createalltracks();
+}
 
-var expressions = [
+function createElement(tagname, parent, event, fn) {
+	var el = d.createElement(tagname);
+	if (parent) parent.appendChild(el);
+	if (event) el.addEventListener(event, fn);
+	return el;
+}
 
-	// kickdrum
-	"Math.sin(t*150.0/22050.0)*curve(t,6) + Math.sin(t*200.0/22050.0)*curve(t,26)",
-
-	// snare
-	// "0.7*noise(t,5)*curve(t,14) + 0.6*noise(t,70)*curve(t,9)",
-	"0.7*noise(t,6)*curve(t,14) + 0.6*noise(t,10)*curve(t,9)",
-
-	// closed hihat
-	"0.4*noise(t,2)*curve(t,36)",
-
-	// open hihat
-	"0.3*noise(t,1)*curve(t,9) + 0.33*noise(t,1)*curve(t,19)",
-
-	// fx1
-	"0.5*Math.sin(t/13)*Math.pow(1-t/40000,5)",
-
-	// fx2
-	"1*noise(t,1)*curve(t,7)"
-];
-
-var gateexpressions = [
-	// kickdrum
-	"s%4==0||s==29",
-	// snare
-	"(s+4)%8==0||s==31",
-	// closed hihat
-	"s%4!=2",
-	// open hihat
-	"(s+2)%4==0||s==20",
-	// fx 1
-	"(s+7)%16==0||s==29",
-	// fx 2
-	"s==16"
-];
-
-//
-// init
-//
-
-// grid
-var grid = [];
-for(var i=0; i<ROWS*COLUMNS; i++) grid.push(0);
-
-// dom
-// var d = document;
-
-// audio
-var context = new webkitAudioContext();
-
-// effect chain
-var comp = context.createDynamicsCompressor();
-comp.connect(context.destination);
-
-// sounds
-var soundbuffers = [];
-
-var noisetable = [];
-for (var i=0; i<100000; i++)
-	noisetable.push(Math.random());
+function appendChild(parent, child) {
+	parent.appendChild(child);
+}
 
 function curve(t, power) {
-	t = Math.max(t, 0);
-	t = Math.min(t / SAMPLELENGTH, 1);
+	if (t<0) t=0;
+	t/=SAMPLELENGTH;
+	if (t>1) t=1;
+	// t=Math.max(t,0);
+	// t = Math.min(t / SAMPLELENGTH, 1);
 	return Math.pow(1-t, power);
 }
 
 function noise(t, res) {
-	return noisetable[(Math.floor(t/res)%100000)];
+	return noisetable[(Math.floor(t/res) % NOISELENGTH)];
 }
 
-
-function rendersound(r) {
-	try {
-		var fn = new Function(["t","noise","curve"], "return "+expressions[r]);
-		var buffer = context.createBuffer(1, SAMPLELENGTH, 44100);
-		var buf = buffer.getChannelData(0);
-		for (i = 0; i < SAMPLELENGTH; i++)
-			buf[i] = fn(i,noise,curve);
-		soundbuffers[r] = buffer;
-	} catch(e) {
-		console.error(e);
-	}
+function updatehash() {
+	var ha = [], ha2;
+	tracks.forEach(function(t) {
+		t.store(ha);
+	});
+	ha2 = ha.join('$');
+	history.pushState(null, null, '#'+w.btoa(ha2));
 }
 
-for (var r=0; r<ROWS; r++) rendersound(r);
+function createfunc(key, expr) {
+	var fn = new Function(['curve','noise',key], 'return '+expr);
+	return fn;
+	return fn.bind(w, curve, noise);
+}
 
-// sounds
+function Track(parent, index, gateexpr, waveexpr) {
+	var self = this,
+		muted = false;
 
-var styles = document.createElement('style');
-document.body.appendChild(styles);
-var styles2 = document.createElement('style');
-document.body.appendChild(styles2);
+	var G = gateexpr;
+	var W = waveexpr;
 
-// functions
+	var n = createElement(DIV, parent);
+	n.innerHTML = '#' + (1+index);
 
-// grid default pattern
+	this.buffer = context.createBuffer(1, SAMPLELENGTH, 48000);
 
-function updategates() {
-	var st = '';
-	for (var r=0; r<ROWS; r++) {
-		var fn = new Function(["s"], "return "+gateexpressions[r]);
-		for(var i=0; i<COLUMNS; i++) {
-			var g = fn(i);
-			grid[r*COLUMNS+i] = g;
-			if (g)
-				st += '.r'+r+'c'+i+' { color: #f00; } ';
+	function renderwave() {
+		var buf = self.buffer.getChannelData(0);
+		try {
+			var fn = createfunc('t', W);
+			var t = 0;
+			while (t < SAMPLELENGTH) {
+				// buf[t] = eval(self.W);
+		 		buf[t] = fn(curve, noise, t);// eval(self.G);
+				t ++;
+			}
+		} catch(e) {
+		 	console.error(W, e);
 		}
+		console.log(buf);
 	}
-	styles2.innerHTML = st;
-}
 
-updategates();
-
-
-// we don't need a canvas
-document.body.removeChild(c); // smaller than c.style.display = 'none';
-
-var x = document.createElement('div');
-
-x.innerHTML = 'xyz';
-
-b.appendChild(x);
-
-
-var _step = -1;
-
-
-function step() {
-
-	// debug
-	if (DEBUG) console.log('step #' + _step);
-
-	// fire sounds!
-	for(var r=0; r<ROWS; r++) {
-		if (grid[r*COLUMNS+_step] && !muted[r]) {
-			if (DEBUG) console.log('play sample #' + r);
-			var source = context.createBufferSource();
-			source.buffer = soundbuffers[r];
-			source.connect(comp);
-			source.start(0);
+	function evalgate() {
+		var r;
+		try {
+			var fn = createfunc('s', G);
+		 	r = fn(curve, noise, step);// eval(self.G);
+		} catch(e) {
+			console.error(G, e);
 		}
+		return r;
 	}
 
-	// update ui
-	var st = '';
-	for(var c=0; c<COLUMNS; c++) {
-		// colcb[c].checked = (c == _step);
-		if (c == _step)
-			st += '.c'+c+' { background-color: #ff0; } ';
-	}
-	styles.innerHTML = st;
-
-	// step forward
-	_step ++;
-	_step %= COLUMNS;
-}
-
-var colcb = [];
-
-function createstep(r, c) {
-	var o =r*COLUMNS+c;
-	var cb = document.createElement('span');
-	cb.className = 'c'+c+' r'+r+'c'+c;
-	cb.innerHTML = '[x] ';
-	/*
-	var cb = document.createElement('input');
-	cb.setAttribute('type', 'checkbox');
-	cb.checked = grid[o];
-	cb.addEventListener('click', function() {
-		grid[o] = cb.checked;
+	var a = createElement(INPUT, n, CHANGE, function() {
+		muted = !a.checked;
 	});
-	*/
-	return cb;
-}
+	a.setAttribute('type', 'checkbox');
+	a.checked = true;
 
-function renderrow(r) {
-	var rowel = document.createElement('div');
-
-	var enabled = document.createElement('input');
-	enabled.setAttribute('type', 'checkbox');
-	enabled.checked = true;
-	enabled.addEventListener('change', function() {
-		muted[r] = !enabled.checked;
-		rendersound(r);
+	var b = createElement(INPUT, n, CHANGE, function() {
+		G = b.value;
+		// updategates();
+		updatehash();
 	});
-	rowel.appendChild(enabled);
+	b.size = 50;
+	b.value = G;
 
-	var code2 = document.createElement('input');
-	code2.size = 50;
-	code2.value = gateexpressions[r];
-	code2.addEventListener('change', function() {
-		gateexpressions[r] = code2.value;
-		updategates();
+	var c = createElement(INPUT, n, CHANGE, function() {
+		W = c.value;
+		renderwave();
+		updatehash();
 	});
-	rowel.appendChild(code2);
+	c.size = 130;
+	c.value = W;
+	// c.value = waveexpr;
 
-	var code = document.createElement('input');
-	code.size = 100;
-	code.value = expressions[r];
-	code.addEventListener('change', function() {
-		expressions[r] = code.value;
-		rendersound(r);
+	var d = createElement(BUTTON, n, CLICK, function() {
+		config.splice(index*2, 2);
+		createalltracks();
+		updatehash();
 	});
-	rowel.appendChild(code);
+	d.innerText = 'Delete';
 
-	// rowel.appendChild(document.createElement('br'));
+	renderwave();
 
-	for(var c=0; c<COLUMNS; c++) {
-		rowel.appendChild(
-			createstep(r, c)
-		);
+	// this.n = n;
+
+	this.store = function(target) {
+		target.push(G, W);
 	}
 
-	return rowel;
-}
-
-function render() {
-	var pageel = document.createElement('div');
-	/*
-	var rowel = document.createElement('div');
-	for(var c=0; c<COLUMNS; c++) {
-		var cb = document.createElement('input');
-		cb.setAttribute('type', 'radio');
-		colcb.push(cb);
-		rowel.appendChild(cb);
+	this.fire = function() {
+		// console.log('eval track step', index, step, G);
+		if (muted) return;
+		if (!evalgate()) return;
+		// fire!
+		// console.log('play sound!', self.buffer);
+		var source = context.createBufferSource();
+		source.buffer = self.buffer;
+		source.connect(comp);
+		source.start(0);
 	}
-	pageel.appendChild(rowel);
-	*/
-	for(var r=0; r<ROWS; r++) pageel.appendChild(renderrow(r));
-
-	// b.innerHTML = '';
-	b.appendChild(pageel);
 }
 
-render();
+function createalltracks() {
+	// create tracks from config
+	tracks = [];
+	tracksel.innerHTML = '';
+	var o = 0;
+	for(var j=0; j<config.length/2; j++) {
+		tracks[j] = new Track(tracksel, j, config[o++], config[o++]);
+	}
+}
 
-// setInterval(render, 1000);
-setInterval(step, 125);
+function _tick() {
+	// console.log('tick.');
+	tracks.forEach(function(t) { t.fire(); });
+	step += 1;
+	step %= 16;
+	setTimeout(_tick, 140);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+comp.ratio.value = 35.0;
+comp.attack.value = 0.05;
+comp.release.value = 0.5;
+comp.threshold.value = -10;
+*/
+comp.connect(context.destination);
+
+i = NOISELENGTH;
+while (i--)
+	 noisetable.push(Math.random());
+
+
+
+
+//
+// Prepare the DOM
+//
+
+title = createElement('h1', b);
+title.innerHTML = 'SEQ1K';
+
+tracksel = createElement(DIV, b);
+
+add = createElement(BUTTON, b, CLICK, function() {
+	config.push('!(s%4)', '0');
+	createalltracks();
+	updatehash();
+});
+add.innerText = 'Add track';
+
+// styles = createElement('style', b);
+// styles2 = createElement('style', b);
+
+window.onhashchange = loadhash;
+
+loadhash();
+
+_tick();
+

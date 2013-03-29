@@ -1,14 +1,26 @@
-all: build/debug.html build/packed.js build/index.html
+all: build/presets.js build/debug.html build/packed.js build/index.html build/crushed.js build/crushed.html reportsizes
+
+reportsizes:
+	ls -la build/*.js
 
 clean:
 	rm -f build/packed.js
 	rm -f build/index.html
 
+build/presets.js: src/preset.js
+	node src/preset.js >build/presets.js
+
 build/packed.js: src/orig.js Makefile
 	ls -la src/orig.js
-	closure-compiler --compilation_level ADVANCED_OPTIMIZATIONS --externs "externs/w3c_audio.js" --js src/orig.js >build/packed.js
+	closure-compiler --compilation_level ADVANCED_OPTIMIZATIONS --externs "externs/w3c_audio.js" --js src/orig.js >build/packed1.js
+	node_modules/uglify-js/bin/uglifyjs build/packed1.js  >build/packed.js
+	# java -jar tools/yuicompressor-2.4.2.jar --verbose src/orig.js  >build/packed.js
+	# closure-compiler --compilation_level SIMPLE_OPTIMIZATIONS --externs "externs/w3c_audio.js" --js src/orig.js >build/packed.js
 	# cp orig.js build/packed.js
 	ls -la build/packed.js
+
+build/crushed.js: build/stripped.js src/jscrush.js
+	node src/jscrush.js build/stripped.js > build/crushed.js
 
 build/stripped.js: build/packed.js Makefile
 	cat build/packed.js | \
@@ -27,6 +39,13 @@ build/index.html: build/stripped.js Makefile
 	cat shim-head.html >>build/index.html
 	cat build/stripped.js >>build/index.html
 	cat shim-foot.html >>build/index.html
+	# ls -la build/index.html
+
+build/crushed.html: build/crushed.js Makefile
+	rm -f build/crushed.html
+	cat shim-head.html >>build/crushed.html
+	cat build/crushed.js >>build/crushed.html
+	cat shim-foot.html >>build/crushed.html
 	# ls -la build/index.html
 
 build: build/debug.html build/index.html build/packed.js Makefile
