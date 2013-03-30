@@ -14,7 +14,7 @@ function calcsafechars(inputscript) {
 	usedchars = usedchars.join('');
 	// console.log('used chars', usedchars);
 	var allchars = '';
-	allchars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ&%#!$%/=?+-:;^~´<>@,._(){}[]|';
+	allchars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ&%#!$%/=?+-:;^~<>@,._(){}[]|';
 	//for(var i=32; i<250; i++)
 	//	allchars += String.fromCharCode(i);
 

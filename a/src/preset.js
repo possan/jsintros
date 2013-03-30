@@ -8,7 +8,7 @@ var expressions = [
 		// snare
 		gate: "!(s%6)", //s%8==4",
 	//	wave: "(N(s/7)+N(s/5))/2*C(s,12)",
-		wave: '(((s>>2)&(s>>8))%9-5)/9*C(s,9)'
+		wave: '(((s>>2)&(s>>8))%9)/9*C(s,9)'
 	},
 	{
 		// closed hihat
@@ -18,13 +18,13 @@ var expressions = [
 	{
 		// open hihat
 		gate: "s%4==2",
-		wave: "N(s)*C(s,6)/2"
+		wave: "N(s)*C(s,9)/3"
 	},
 	{
 		// bass
-		gate: "s%6",
+		gate: "1",
 		// wave: "((s/600)%1-0.5)*C(s,20)/2"
-		wave: "((s/200)%4-2)*C(s,30)/4"
+		wave: "((s>>8)%4)*C(s,30)/4"
 	}
 ];
 
