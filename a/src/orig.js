@@ -11,244 +11,153 @@ var a = c.getContext('2d');
 //
 
 // we don't need no stinking canvas
-b.removeChild(c);
+// b.removeChild(c);
+c.height=0;
+// c.style.display='none';
 
-var default_hash="!(s%4)$Math.sin(t*150.0*curve(t,1)/22050.0)*curve(t,16)+Math.sin(t*150.0/22050.0)*curve(t,15)$(s+4)%8==0||s==31$0.7*noise(t,6)*curve(t,14)+0.6*noise(t,10)*curve(t,9)$s%4!=2$0.4*noise(t,2)*curve(t,36)$(s+2)%4==0||s==20$0.3*noise(t,1)*curve(t,9)+0.33*noise(t,1)*curve(t,19)$s%5!=2$0.5*((t/600)%1-0.5)*curve(t,30)$s%3==2$0.5*((t/150)%1-0.5)*curve(t,20)";
+var default_hash=[{w:"Math.sin(s*0.014*C(s,3))*C(s,4)",g:"!(s%4)"},{w:"0.7*N(s,6)*C(s,14)+0.6*N(s,10)*C(s,9)",g:"!((s+4)%8)"},{w:"0.4*N(s,2)*C(s,36)",g:"s%4!=2"},{w:"0.3*N(s,1)*C(s,9)+0.33*N(s,1)*C(s,19)",g:"(s+2)%4==0||s==20"},{w:"0.5*((s/600)%1-0.5)*C(s,30)",g:"s%5!=2"},{w:"((s>>6)&11+(s>>5)&9)/12*C(s,5)",g:"s%3==2"}];
+
 
 var	d = document;
 var	w = window;
+var m = Math;
 var	i;
 var	step = 0;
 var	DEBUG = false;
-var	COLUMNS = 32;
-var	SAMPLELENGTH = 48000; // ~0.5s
-var	NOISELENGTH = SAMPLELENGTH;
-var	ROWS = 6;
-var	config = [];
+var	SAMPLELENGTH = 44100; // ~0.5s
+var	NOISELENGTH = 9000;
 var	wl = w.location;
 var	wlh = wl.hash;
+
 var	context = new webkitAudioContext();
-var	comp = context.createDynamicsCompressor();
-var	noisetable=[];
-var	tracksel;
-var	add;
-var	title;
-var	tracks;
-var CHANGE='change';
+var comp = context.createDynamicsCompressor();
+with(comp) {
+	// comp.ratio.value = 35.0;
+	// comp.release.value = 0.5;
+	attack.value = 0.05;
+	threshold.value = -10;
+	connect(context.destination);
+}
+
+var	CHANGE='change';
 var	CLICK='click';
 var	INPUT='input';
 var	DIV='div';
 var	BUTTON='button';
+var INNERHTML='innerHTML';
 
-function loadhash(ee) {
-	// console.log('loadhash event', ee);
-	var s = wlh.replace('#', '')
-	if (s == '') s = w.btoa(default_hash);
-	//	if (wlh == '') wlh = '#' + default_hash;
-	// console.log('s', s);
-	config = w.atob(s).split('$');
-	// console.log('new config', config);
-	createalltracks();
-}
-
-function createElement(tagname, parent, event, fn) {
+function createElement(tagname, parent, innertext, _event, fn) {
 	var el = d.createElement(tagname);
-	if (parent) parent.appendChild(el);
-	if (event) el.addEventListener(event, fn);
+	parent.appendChild(el);
+	innertext && (el.innerText = innertext);
+	fn && el.addEventListener(_event, fn.bind(el));
 	return el;
 }
 
-function appendChild(parent, child) {
-	parent.appendChild(child);
+function createfunc(expr) {
+	try {
+		var fn = new Function(['C','N','s'], 'return '+expr);
+
+		var noisetable = [];
+		var i = NOISELENGTH;
+		while (i--)
+			 noisetable.push(m.random());
+
+		function curve(t, power) {
+			t/=SAMPLELENGTH;
+			if (t<0) t=0;
+			if (t>1) t=1;
+			return m.pow(1-t, power);
+		}
+
+		function noise(t, res) {
+			return noisetable[~~(t / res) % NOISELENGTH];
+		}
+
+		return fn.bind(w, curve, noise);
+	} catch(e) {
+	 // 	console.error(W, e);
+	}
 }
 
-function curve(t, power) {
-	if (t<0) t=0;
-	t/=SAMPLELENGTH;
-	if (t>1) t=1;
-	// t=Math.max(t,0);
-	// t = Math.min(t / SAMPLELENGTH, 1);
-	return Math.pow(1-t, power);
-}
-
-function noise(t, res) {
-	return noisetable[(Math.floor(t/res) % NOISELENGTH)];
-}
-
-function updatehash() {
-	var ha = [], ha2;
-	tracks.forEach(function(t) {
-		t.store(ha);
-	});
-	ha2 = ha.join('$');
-	history.pushState(null, null, '#'+w.btoa(ha2));
-}
-
-function createfunc(key, expr) {
-	var fn = new Function(['curve','noise',key], 'return '+expr);
-	return fn;
-	return fn.bind(w, curve, noise);
-}
-
-function Track(parent, index, gateexpr, waveexpr) {
-	var self = this,
-		muted = false;
-
-	var G = gateexpr;
-	var W = waveexpr;
-
-	var n = createElement(DIV, parent);
-	n.innerHTML = '#' + (1+index);
-
-	this.buffer = context.createBuffer(1, SAMPLELENGTH, 48000);
+function Track(data) {
+	data.t = this;
+	// console.log('track data', data);
+	var n = createElement(DIV, tracksel, '');
+	var __buffer = context.createBuffer(1, SAMPLELENGTH, 48000);
 
 	function renderwave() {
-		var buf = self.buffer.getChannelData(0);
-		try {
-			var fn = createfunc('t', W);
-			var t = 0;
-			while (t < SAMPLELENGTH) {
-				// buf[t] = eval(self.W);
-		 		buf[t] = fn(curve, noise, t);// eval(self.G);
-				t ++;
-			}
-		} catch(e) {
-		 	console.error(W, e);
-		}
-		console.log(buf);
+		var buf = __buffer.getChannelData(0);
+		var fn = createfunc(data.w);
+		for(var t=0; t<SAMPLELENGTH; t++)
+			buf[t] = fn(t);
 	}
 
-	function evalgate() {
-		var r;
-		try {
-			var fn = createfunc('s', G);
-		 	r = fn(curve, noise, step);// eval(self.G);
-		} catch(e) {
-			console.error(G, e);
-		}
-		return r;
-	}
-
-	var a = createElement(INPUT, n, CHANGE, function() {
-		muted = !a.checked;
+	var b = createElement(INPUT, n, '', CHANGE, function() {
+		data.g = this.value;
+		savehash();
 	});
-	a.setAttribute('type', 'checkbox');
-	a.checked = true;
+	b.size = 40;
+	b.value = data.g;
 
-	var b = createElement(INPUT, n, CHANGE, function() {
-		G = b.value;
-		// updategates();
-		updatehash();
-	});
-	b.size = 50;
-	b.value = G;
-
-	var c = createElement(INPUT, n, CHANGE, function() {
-		W = c.value;
+	var c = createElement(INPUT, n, '', CHANGE, function() {
+		data.w = this.value;
 		renderwave();
-		updatehash();
+		savehash();
 	});
-	c.size = 130;
-	c.value = W;
-	// c.value = waveexpr;
-
-	var d = createElement(BUTTON, n, CLICK, function() {
-		config.splice(index*2, 2);
-		createalltracks();
-		updatehash();
+	c.size = 99;
+	c.value = data.w;
+	/*
+	createElement(BUTTON, n, 'X', CLICK, function() {
+		var row = config.indexOf(data);
+		config.splice(row, 1);
+		n.parentNode.removeChild(n);
+		savehash();
 	});
-	d.innerText = 'Delete';
-
+	*/
 	renderwave();
 
-	// this.n = n;
-
-	this.store = function(target) {
-		target.push(G, W);
-	}
-
-	this.fire = function() {
-		// console.log('eval track step', index, step, G);
-		if (muted) return;
-		if (!evalgate()) return;
-		// fire!
-		// console.log('play sound!', self.buffer);
-		var source = context.createBufferSource();
-		source.buffer = self.buffer;
-		source.connect(comp);
-		source.start(0);
+	data.f = function() {
+		if (createfunc(data.g)(step)) {
+			with(context.createBufferSource()){
+				buffer = __buffer;
+				connect(comp);
+				start(0);
+			}
+		}
 	}
 }
 
-function createalltracks() {
-	// create tracks from config
-	tracks = [];
-	tracksel.innerHTML = '';
-	var o = 0;
-	for(var j=0; j<config.length/2; j++) {
-		tracks[j] = new Track(tracksel, j, config[o++], config[o++]);
-	}
-}
+createElement('h1', b, 'SEQ1K');
 
-function _tick() {
-	// console.log('tick.');
-	tracks.forEach(function(t) { t.fire(); });
-	step += 1;
-	step %= 16;
-	setTimeout(_tick, 140);
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+var tracksel = createElement(DIV, b);
 
 /*
-comp.ratio.value = 35.0;
-comp.attack.value = 0.05;
-comp.release.value = 0.5;
-comp.threshold.value = -10;
-*/
-comp.connect(context.destination);
-
-i = NOISELENGTH;
-while (i--)
-	 noisetable.push(Math.random());
-
-
-
-
-//
-// Prepare the DOM
-//
-
-title = createElement('h1', b);
-title.innerHTML = 'SEQ1K';
-
-tracksel = createElement(DIV, b);
-
-add = createElement(BUTTON, b, CLICK, function() {
-	config.push('!(s%4)', '0');
-	createalltracks();
-	updatehash();
+createElement(BUTTON, b, 'Add', CLICK, function() {
+	var o = { g: '0',  w: '0' }
+	new Track(o);
+	config.push(o);
+	savehash();
 });
-add.innerText = 'Add track';
+*/
+var config = ((wlh == '') ? default_hash : eval(wlh.substr(1)));//.split('$');
+config.map(function(o) {
+	new Track(o);
+});
+for(var i=config.length; i<10; i++) {
+	var o = { g: '0',  w: '0' }
+	new Track(o);
+	config.push(o);
+}
 
-// styles = createElement('style', b);
-// styles2 = createElement('style', b);
+var savehash = function() {
+	var ha = config.map(function(x) {
+		return {g:x.g, w:x.w};
+	});
+	wl.hash = JSON.stringify(ha);
+};
 
-window.onhashchange = loadhash;
-
-loadhash();
-
-_tick();
-
+setInterval(function() {
+	config.map(function(x) { x.f(); });
+	step=(step+1)%256;
+}, 130);

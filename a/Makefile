@@ -19,13 +19,12 @@ build/packed.js: src/orig.js Makefile
 	# cp orig.js build/packed.js
 	ls -la build/packed.js
 
-build/crushed.js: build/stripped.js src/jscrush.js
-	node src/jscrush.js build/stripped.js > build/crushed.js
+build/crushed.js: build/stripped.js src/crush.js
+	node src/crush.js build/stripped.js > build/crushed.js
 
 build/stripped.js: build/packed.js Makefile
-	cat build/packed.js | \
-		sed 's/var\ //g' \
-	 	>build/stripped.js
+	# sed 's/var\ //g'
+	cat build/packed.js >build/stripped.js
 	ls -la build/stripped.js
 
 build/debug.html: src/orig.js Makefile
