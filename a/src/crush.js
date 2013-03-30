@@ -15,8 +15,8 @@ function calcsafechars(inputscript) {
 	// console.log('used chars', usedchars);
 	var allchars = '';
 	allchars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ&%#!$%/=?+-:;^~´<>@,._(){}[]|';
-	// for(var i=50; i<120; i++)
-	// allchars += String.fromCharCode(i);
+	//for(var i=32; i<250; i++)
+	//	allchars += String.fromCharCode(i);
 
 	for(var i=0; i<allchars.length; i++) {
 		var ac = allchars.substring(i, i+1);
@@ -51,7 +51,7 @@ function crush(inputscript) {
 	var candidates = [];
 
 	// pass 1, find all long words
-	for (var L=inputscript.length>>3; L>=2; L--) {
+	for (var L=inputscript.length>>2; L>=3; L--) {
 		// console.log('looking for words with length: '+L);
 		for (var i=0; i<inputscript.length-L; i++) {
 			var word = inputscript.substring(i, i+L);
@@ -80,14 +80,14 @@ function crush(inputscript) {
 
 	var swaps = [];
 	var leftover = inputscript;
-	for(var i=0; i<candidates.length; i++) {
+	var stop = false;
+	for(var i=0; i<candidates.length && !stop; i++) {
 		var word = candidates[i].word;
 		var n = count(leftover, word);
-		if (n > 2) {
-			// console.log(n);
+		if (n > 3) {
 			if (safechars.length > 0) {
 				var safechar = safechars[0];
-				// console.log('swapping \"' + word + '\" for \"' + safechar + '\"');
+				console.error('Swapping \"' + word + '\" for \"' + safechar + '\"');
 				try {
 					var re = new RegExp(escapeRegExp(word), 'g');
 					leftover = leftover.replace(re, safechar);
@@ -96,6 +96,9 @@ function crush(inputscript) {
 				} catch(e) {
 					console.error(e);
 				}
+			} else {
+				console.error('Ran out of safe chars.');
+				stop = true;
 			}
 		}
 	}
@@ -116,24 +119,29 @@ function crush(inputscript) {
 	if (safechars.length > 0) {
 		safechar = safechars[0];
 		safechars = safechars.substring(1);
+	} else {
+		console.error('Ran out of safe chars.');
 	}
 
 	var output = '_='+smartQuotes(leftover);
 	// output += ';console.log(_);';
-	output += ';$=' + smartQuotes(instr.join(safechar));
-	output += '.split(\''+safechar+'\');';
-	output += ';while($a=$.pop()){';
-	output += '$b=$.pop();_=_.split($b).join($a)';
+	output += ',$=' + smartQuotes(instr.join(safechar));
+	output += '.split(\''+safechar+'\')';
+	// output += ';with($){'
+	output += ';while(x=$.pop()){';
+	output += 'y=$.pop();_=_.split(y).join(x)';
 	// output += ';console.log(_a,_b,_);';
+	// output += '}';
 	output += '}';
 	// utput += ';console.log(_);\n';
 	// output += ';(new Function(_)).call(this)';
-	 output += ';eval(_)';
+	 output += 'eval(_)';
 	// eval(output);
 
-	console.error('// input is '+inputscript.length+' bytes');
-	console.error('// output is '+output.length+' bytes');
-	console.error('// result, output is '+(inputscript.length-output.length)+' bytes smaller');
+	///onsole.error('// input is '+inputscript.length+' bytes');
+	//console.error('// output is '+output.length+' bytes');
+	//console.error('// result, output is '+(inputscript.length-output.length)+' bytes smaller');
+	//console.error('// result, output is '+(output.length-1024)+' bytes away from 1024');
 
 	if (inputscript.length <= output.length) {
 		// if output is bigger, return original.
@@ -144,14 +152,23 @@ function crush(inputscript) {
 	}
 }
 
-if (process.argv.length < 2) {
-	console.log('Syntax: crush.js [inputfile] > [outputfile]');
+if (process.argv.length < 3) {
+	console.log('Syntax: crush.js [inputfile] [outputfile]');
 	return;
 }
 
 var fs = require('fs');
-var code = fs.readFileSync(process.argv[2], 'utf8').trim();
+var incode = fs.readFileSync(process.argv[2], 'utf8').trim();
+code = crush(incode);
 code = crush(code);
 code = crush(code);
-code = crush(code);
+
+var targetsize = Math.floor(incode.length / 1024) * 1024;
+
+console.error('// input is '+incode.length+' bytes');
+console.error('// output is '+code.length+' bytes');
+console.error('// result, output is '+(incode.length-code.length)+' bytes smaller');
+console.error('// result, output is '+(code.length-targetsize)+' bytes away from 1024');
+
 console.log(code);
+fs.writeFileSync(process.argv[3], code, 'ascii');

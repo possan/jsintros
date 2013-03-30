@@ -2,34 +2,29 @@ var expressions = [
 	{
 		// kickdrum
 		gate: "!(s%4)",
-		// wave: "Math.sin(t*150.0*C(t,1)/22050.0)*C(t,6)+Math.sin(t*200.0/22050.0)*C(t,26)"
-		wave: "Math.sin(s*0.014*C(s,3))*C(s,4)"
-		// }	wave: "Math.sin(s*150.0*C(s,1)/22050.0)*C(s,16)+Math.sin(s*150.0/22050.0)*C(s,15)"
+		wave: "m.sin(s/99*C(s,1))*C(s,2)"
 	},
 	{
 		// snare
-		gate: "!((s+4)%8)",
-		wave: "0.7*N(s,6)*C(s,14)+0.6*N(s,10)*C(s,9)",
+		gate: "!(s%6)", //s%8==4",
+	//	wave: "(N(s/7)+N(s/5))/2*C(s,12)",
+		wave: '(((s>>2)&(s>>8))%9-5)/9*C(s,9)'
 	},
 	{
 		// closed hihat
-		gate: "s%4!=2",
-		wave: "0.4*N(s,2)*C(s,36)",
+		gate: "1",
+		wave: "N(s)*C(s,49)/3",
 	},
 	{
 		// open hihat
-		gate: "(s+2)%4==0||s==20",
-		wave: "0.3*N(s,1)*C(s,9)+0.33*N(s,1)*C(s,19)"
+		gate: "s%4==2",
+		wave: "N(s)*C(s,6)/2"
 	},
 	{
-		// fx 1
-		gate: "s%5!=2",
-		wave: "0.5*((s/600)%1-0.5)*C(s,30)"
-	},
-	{
-		// fx 2
-		gate: "s%3==2",
-		wave: "((s>>6)&11+(s>>5)&9)/12*C(s,5)"
+		// bass
+		gate: "s%6",
+		// wave: "((s/600)%1-0.5)*C(s,20)/2"
+		wave: "((s/200)%4-2)*C(s,30)/4"
 	}
 ];
 
