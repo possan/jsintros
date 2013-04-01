@@ -7,8 +7,9 @@ var expressions = [
 	{
 		// snare
 		gate: "!(s%6)", //s%8==4",
-	//	wave: "(N(s/7)+N(s/5))/2*C(s,12)",
-		wave: '(((s>>2)&(s>>8))%9)/9*C(s,9)'
+		//	wave: "(N(s/7)+N(s/5))/2*C(s,12)",
+		//	wave: '(((s>>2)&(s>>8))%9)/9*C(s,9)',
+		wave: '((s>>9)&s>>8)%2*C(s,9)'
 	},
 	{
 		// closed hihat

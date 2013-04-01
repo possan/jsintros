@@ -1,7 +1,7 @@
-var default_hash=[{w:"m.sin(s/99*C(s,1))*C(s,2)",g:"!(s%4)"},{w:"(((s>>2)&(s>>8))%9)/9*C(s,9)",g:"!(s%6)"},{w:"N(s)*C(s,49)/3",g:"1"},{w:"N(s)*C(s,9)/3",g:"s%4==2"},{w:"((s>>8)%4)*C(s,30)/4",g:"1"}];
+var default_hash=[{w:"m.sin(s/99*C(s,1))*C(s,2)",g:"!(s%4)"},{w:"((s>>9)&s>>8)%2*C(s,9)",g:"!(s%6)"},{w:"N(s)*C(s,49)/3",g:"1"},{w:"N(s)*C(s,9)/3",g:"s%4==2"},{w:"((s>>8)%4)*C(s,30)/4",g:"1"}];
 
 // =========================================================
-// 1024 byte expression based webaudio sequencer and sampler
+// 1kb expression based webaudio sequencer and sampler
 // by: Per-Olov Jernberg
 // @possan http://twitter.com/possan
 // =========================================================
@@ -51,7 +51,7 @@ m = Math;
 var ev = eval;
 var	step = 0;
 var	SAMPLELENGTH = 44100;
-var	wl = window.location;
+var	wl = window.top.location;
 
 var	context = new webkitAudioContext();
 var comp = context.createDynamicsCompressor();
@@ -83,15 +83,14 @@ setInterval(function() {
 	step++;step%=BPM_AND_STEPS;
 }, BPM_AND_STEPS);
 
+for(var i=config.length; i<10; i++) {
+	var o = {g: 0,  w:0 };
+	config.push(o);
+}
+
 config.map(function(o) {
 	new Track(o);
 });
-
-for(var i=config.length; i<9; i++) {
-	var o = {g: 0,  w:0 };
-	new Track(o);
-	config.push(o);
-}
 
 function Track(data) {
 	data.t = this;

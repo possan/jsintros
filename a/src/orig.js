@@ -1,5 +1,5 @@
 // =========================================================
-// 1024 byte expression based webaudio sequencer and sampler
+// 1kb expression based webaudio sequencer and sampler
 // by: Per-Olov Jernberg
 // @possan http://twitter.com/possan
 // =========================================================
@@ -49,7 +49,7 @@ m = Math;
 var ev = eval;
 var	step = 0;
 var	SAMPLELENGTH = 44100;
-var	wl = window.location;
+var	wl = window.top.location;
 
 var	context = new webkitAudioContext();
 var comp = context.createDynamicsCompressor();
@@ -81,15 +81,14 @@ setInterval(function() {
 	step++;step%=BPM_AND_STEPS;
 }, BPM_AND_STEPS);
 
+for(var i=config.length; i<10; i++) {
+	var o = {g: 0,  w:0 };
+	config.push(o);
+}
+
 config.map(function(o) {
 	new Track(o);
 });
-
-for(var i=config.length; i<9; i++) {
-	var o = {g: 0,  w:0 };
-	new Track(o);
-	config.push(o);
-}
 
 function Track(data) {
 	data.t = this;

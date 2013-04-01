@@ -1,4 +1,4 @@
-all: build/presets.js build/debug.html build/packed.js build/index.html build/crushed.js build/crushed.html reportsizes
+all: build/presets.js build/debug.html build/packed.js build/index.html build/crushed.js build/crushed.html build/framed.html reportsizes
 
 reportsizes:
 	ls -la build/*.js
@@ -48,6 +48,9 @@ build/crushed.html: build/crushed.js Makefile
 	cat build/crushed.js >>build/crushed.html
 	cat shim-foot.html >>build/crushed.html
 	# ls -la build/index.html
+
+build/framed.html: build/crushed.html Makefile src/frame.js
+	node src/frame.js build/crushed.html build/framed.html
 
 build: build/debug.html build/index.html build/packed.js Makefile
 
